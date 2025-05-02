@@ -6,6 +6,9 @@ import os
 import pickle
 import re
 import string
+import nltk
+nltk.data.path.append('./nltk_data')
+
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
