@@ -2,10 +2,14 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
 import pandas as pd
+import os 
 
 # Load the trained model and encoders
-clf = joblib.load('hair_condition_model.pkl')
-label_encoders = joblib.load('label_encoders.pkl')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load the model and encoders from the correct path
+clf = joblib.load(os.path.join(BASE_DIR, 'hair_condition_model.pkl'))
+label_encoders = joblib.load(os.path.join(BASE_DIR, 'label_encoders.pkl'))
 
 # Initialize FastAPI app
 app = FastAPI()
