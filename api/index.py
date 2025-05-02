@@ -1,8 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import joblib
 import pandas as pd
 import os 
+import pickle
+import re
+import string
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
 
 # Load the trained model and encoders
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -10,6 +16,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Load the model and encoders from the correct path
 clf = joblib.load(os.path.join(BASE_DIR, 'hair_condition_model.pkl'))
 label_encoders = joblib.load(os.path.join(BASE_DIR, 'label_encoders.pkl'))
+
+tfidf = joblib.load(os.path.join(BASE_DIR,'tfidf_vectorizer.pkl'))
+model = joblib.load(os.path.join(BASE_DIR,'nb_model.pkl'))
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -63,3 +72,31 @@ def predict_hair_condition(input_data: HairConditionInput):
     result = "Hair Fall Problem" if prediction[0] == 1 else "No Hair Fall Problem"
 
     return {"prediction": result}
+
+
+# Define request model
+class TextInput(BaseModel):
+    text: str
+
+# Text preprocessing function
+def preprocess_text(text: str) -> str:
+    text = text.lower()
+    text = re.sub(r"https?://\S+|www\.\S+", "", text)
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    words = word_tokenize(text)
+    stop_words = set(stopwords.words("english"))
+    words = [w for w in words if w not in stop_words]
+    stemmer = PorterStemmer()
+    words = [stemmer.stem(w) for w in words]
+    return " ".join(words)
+
+# Define the prediction endpoint
+@app.post("/depress_predict")
+def predict(input_data: TextInput):
+    try:
+        cleaned_text = preprocess_text(input_data.text)
+        vectorized = tfidf.transform([cleaned_text])
+        prediction = model.predict(vectorized)[0]
+        return {"prediction": int(prediction)}  # 0 = Not Depressed, 1 = Depressed
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
